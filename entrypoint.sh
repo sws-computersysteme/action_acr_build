@@ -56,6 +56,9 @@ az login --service-principal \
     --password "${INPUT_SERVICE_PRINCIPAL_PASSWORD}" \
     --tenant "${INPUT_TENANT}"
 
+echo "Git Clone URL used for build:"
+echo "https://${GIT_ACCESS_TOKEN_FLAG}github.com/${GITHUB_REPOSITORY}.git#${INPUT_BRANCH}:${INPUT_FOLDER}"
+
 # Build and push image
 echo "Starting build job on ACR..."
 az acr build \
