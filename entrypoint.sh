@@ -1,78 +1,51 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 set -euo pipefail
 
-echo "🚀 Starte Azure Docker Build and Push Action..."
+# Default values
+INPUT_DOCKERFILE="${INPUT_DOCKERFILE:-Dockerfile}"
+INPUT_TAG="${INPUT_TAG:-${GITHUB_SHA::8}}"
+INPUT_BRANCH="${INPUT_BRANCH:-master}"
+IMAGE_PART=""
+BUILD_ARGS=""
 
-# Eingaben lesen
-SERVICE_PRINCIPAL="$1"
-SERVICE_PRINCIPAL_PASSWORD="$2"
-TENANT="$3"
-REGISTRY="$4"
-REPOSITORY="$5"
-GIT_ACCESS_TOKEN="$6"
-IMAGE="${7:-app}"
-TAG="${8:-}"
-BRANCH="${9:-master}"
-FOLDER="${10}"
-DOCKERFILE="${11:-Dockerfile}"
-BUILD_ARGS_JSON="${12:-}"
-
-# Validation der Pflichtfelder
-if [[ -z "$SERVICE_PRINCIPAL" || -z "$SERVICE_PRINCIPAL_PASSWORD" || -z "$TENANT" || -z "$REGISTRY" || -z "$REPOSITORY" || -z "$GIT_ACCESS_TOKEN" || -z "$FOLDER" ]]; then
-  echo "❌ Fehler: Pflichtfelder fehlen."
-  exit 1
+# Prepare build arguments if provided
+if [[ -n "${INPUT_BUILD_ARGS:-}" ]]; then
+    BUILD_ARGS=$(echo -n "${INPUT_BUILD_ARGS}" | jq -j '.[] | keys[] as $k | values[] as $v | "--build-arg \($k)=\"\($v)\" "')
 fi
 
-# Default TAG setzen, wenn nicht übergeben
-if [[ -z "$TAG" ]]; then
-  TAG=$(echo "${GITHUB_SHA:-$(date +%s)}" | cut -c1-8)
-  echo "ℹ️ Kein Tag angegeben. Verwende automatisch: $TAG"
+# Set image part if image name is given
+if [[ -n "${INPUT_IMAGE:-}" ]]; then
+    IMAGE_PART="/${INPUT_IMAGE}"
 fi
 
-echo "🔐 Azure Login..."
-az login --service-principal -u "$SERVICE_PRINCIPAL" -p "$SERVICE_PRINCIPAL_PASSWORD" --tenant "$TENANT" --output none
-
-echo "🔓 Login in Azure Container Registry..."
-az acr login --name "$REGISTRY"
-
-# Repo clonen
-TEMP_DIR=$(mktemp -d)
-cd "$TEMP_DIR"
-
-echo "📥 Klone Repository $REPOSITORY..."
-git clone "https://$GIT_ACCESS_TOKEN@github.com/$REPOSITORY.git" repo
-cd repo
-
-echo "📂 Checkout Branch $BRANCH..."
-git checkout "$BRANCH"
-
-# In das Source-Folder wechseln
-cd "$FOLDER"
-
-# Build-Command vorbereiten
-echo "⚙️ Docker Build wird vorbereitet..."
-BUILD_CMD="docker build -f $DOCKERFILE -t $REGISTRY.azurecr.io/$IMAGE:$TAG ."
-
-# Build-Args anhängen, falls vorhanden
-if [[ -n "$BUILD_ARGS_JSON" ]]; then
-  echo "➕ Anwenden von Build-Args..."
-  for row in $(echo "${BUILD_ARGS_JSON}" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"'); do
-    BUILD_CMD+=" --build-arg $row"
-  done
+# Add Git access token if available
+GIT_ACCESS_TOKEN_FLAG=""
+if [[ -n "${INPUT_GIT_ACCESS_TOKEN:-}" ]]; then
+    GIT_ACCESS_TOKEN_FLAG="${INPUT_GIT_ACCESS_TOKEN}@"
 fi
 
-echo "🏗️ Führe Build aus:"
-echo "$BUILD_CMD"
-eval "$BUILD_CMD"
+# Summary
+echo "-----------------------------------------------------"
+echo "Building Docker image:"
+echo "  Registry:        ${INPUT_REGISTRY}"
+echo "  Repository:      ${INPUT_REPOSITORY}${IMAGE_PART}"
+echo "  Tag:             ${INPUT_TAG}"
+echo "  Source:          ${GITHUB_REPOSITORY} (Branch: ${INPUT_BRANCH})"
+echo "  Context Folder:  ${INPUT_FOLDER}"
+echo "-----------------------------------------------------"
 
-echo "🚚 Push Docker Image nach ACR..."
-docker push "$REGISTRY.azurecr.io/$IMAGE:$TAG"
+# Azure login
+echo "Logging into Azure Container Registry..."
+az login --service-principal \
+    --username "${INPUT_SERVICE_PRINCIPAL}" \
+    --password "${INPUT_SERVICE_PRINCIPAL_PASSWORD}" \
+    --tenant "${INPUT_TENANT}"
 
-echo "✅ Erfolg: Image $REGISTRY.azurecr.io/$IMAGE:$TAG wurde erfolgreich gebaut und gepusht."
-
-# Aufräumen
-echo "🧹 Aufräumen..."
-rm -rf "$TEMP_DIR"
-
-echo "🏁 Fertig!"
+# Build and push image
+echo "Starting build job on ACR..."
+az acr build \
+    -r "${INPUT_REGISTRY}" \
+    ${BUILD_ARGS} \
+    -f "${INPUT_DOCKERFILE}" \
+    -t "${INPUT_REPOSITORY}${IMAGE_PART}:${INPUT_TAG}" \
+    "https://${GIT_ACCESS_TOKEN_FLAG}github.com/${GITHUB_REPOSITORY}.git#${INPUT_BRANCH}:${INPUT_FOLDER}"
