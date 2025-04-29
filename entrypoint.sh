@@ -14,11 +14,6 @@ fi
 IMAGE_PART=""
 BUILD_ARGS=""
 
-# Prepare build arguments if provided
-if [[ -n "${INPUT_BUILD_ARGS:-}" ]]; then
-    BUILD_ARGS=$(echo -n "${INPUT_BUILD_ARGS}" | jq -j '.[] | keys[] as $k | values[] as $v | "--build-arg \($k)=\"\($v)\" "')
-fi
-
 # Set image part if image name is given
 if [[ -n "${INPUT_IMAGE:-}" ]]; then
     IMAGE_PART="/${INPUT_IMAGE}"
@@ -42,9 +37,14 @@ else
     echo ".node-version file not found, skipping NODE_VERSION setting."
 fi
 
-# Build args ergänzen
+# Erst INPUT_BUILD_ARGS verarbeiten (falls vorhanden)
+BUILD_ARGS_FROM_INPUT=$(echo -n "${INPUT_BUILD_ARGS:-''}" | jq -j '.[] | keys[] as $k | values[] as $v | "--build-arg \($k)=\"\($v)\" "' || true)
+
+# Jetzt dynamisch NODE_VERSION ergänzen, falls vorhanden
 if [[ -n "${NODE_VERSION}" ]]; then
-    BUILD_ARGS="--build-arg NODE_VERSION=${NODE_VERSION} ${BUILD_ARGS}"
+    BUILD_ARGS="--build-arg NODE_VERSION=${NODE_VERSION} ${BUILD_ARGS_FROM_INPUT}"
+else
+    BUILD_ARGS="${BUILD_ARGS_FROM_INPUT}"
 fi
 
 echo "-----------------------------------------------------"
@@ -54,15 +54,17 @@ echo "  CI_ACTION_REF_NAME=${CI_ACTION_REF_NAME}"
 echo "  NODE_VERSION=${NODE_VERSION}"
 echo "-----------------------------------------------------"
 
+echo "Git Clone URL used for build:"
+echo "https://${GIT_ACCESS_TOKEN_FLAG}github.com/${GITHUB_REPOSITORY}.git#${INPUT_BRANCH}:${INPUT_FOLDER}"
+echo "Build arguments: ${BUILD_ARGS}"
+echo "-----------------------------------------------------"
+
 # Azure login
 echo "Logging into Azure Container Registry..."
 az login --service-principal \
     --username "${INPUT_SERVICE_PRINCIPAL}" \
     --password "${INPUT_SERVICE_PRINCIPAL_PASSWORD}" \
     --tenant "${INPUT_TENANT}"
-
-echo "Git Clone URL used for build:"
-echo "https://${GIT_ACCESS_TOKEN_FLAG}github.com/${GITHUB_REPOSITORY}.git#${INPUT_BRANCH}:${INPUT_FOLDER}"
 
 # Build and push image
 echo "Starting build job on ACR..."
