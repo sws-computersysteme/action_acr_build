@@ -18,10 +18,10 @@ inputs:
     description: "The name of the ACR, minus the .azurecr.io"
     required: true
   repository:
-    description: "Repository to use"
-    required: true
+    description: "Repository to use (defaults to current repo)"
+    required: false
   git_access_token:
-    description: 'Github access token for private repositories'
+    description: "Github access token for private repositories"
     required: true
   image:
     description: "Docker image name"
@@ -41,6 +41,13 @@ inputs:
   build_args:
     description: "JSON specifying key=value pairs as as Docker build arguments"
     required: false
+outputs:
+  ci_repository_name:
+    description: "The name of the repository without the owner prefix"
+  ci_action_ref_name:
+    description: "The branch or tag name that triggered the workflow"
+  node_version:
+    description: "Node.js version read from the .node-version file"
 runs:
   using: "docker"
   image: "Dockerfile"

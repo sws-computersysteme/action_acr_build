@@ -5,6 +5,12 @@ set -euo pipefail
 INPUT_DOCKERFILE="${INPUT_DOCKERFILE:-Dockerfile}"
 INPUT_TAG="${INPUT_TAG:-${GITHUB_SHA::8}}"
 INPUT_BRANCH="${INPUT_BRANCH:-master}"
+
+# Automatisch Repository bestimmen, wenn nicht übergeben
+if [[ -z "${INPUT_REPOSITORY:-}" ]]; then
+  INPUT_REPOSITORY="${GITHUB_REPOSITORY#*/}"
+fi
+
 IMAGE_PART=""
 BUILD_ARGS=""
 
@@ -24,14 +30,23 @@ if [[ -n "${INPUT_GIT_ACCESS_TOKEN:-}" ]]; then
     GIT_ACCESS_TOKEN_FLAG="${INPUT_GIT_ACCESS_TOKEN}@"
 fi
 
-# Summary
+# --- NEU: Set Environment Variables ---
+CI_REPOSITORY_NAME="${INPUT_REPOSITORY}"
+CI_ACTION_REF_NAME="${GITHUB_REF_NAME}"
+NODE_VERSION=""
+
+# Read .node-version file if exists
+if [[ -f ".node-version" ]]; then
+    NODE_VERSION=$(cat .node-version | tr -d '[:space:]')
+else
+    echo ".node-version file not found, skipping NODE_VERSION setting."
+fi
+
 echo "-----------------------------------------------------"
-echo "Building Docker image:"
-echo "  Registry:        ${INPUT_REGISTRY}"
-echo "  Repository:      ${INPUT_REPOSITORY}${IMAGE_PART}"
-echo "  Tag:             ${INPUT_TAG}"
-echo "  Source:          ${GITHUB_REPOSITORY} (Branch: ${INPUT_BRANCH})"
-echo "  Context Folder:  ${INPUT_FOLDER}"
+echo "Environment Variables:"
+echo "  CI_REPOSITORY_NAME=${CI_REPOSITORY_NAME}"
+echo "  CI_ACTION_REF_NAME=${CI_ACTION_REF_NAME}"
+echo "  NODE_VERSION=${NODE_VERSION}"
 echo "-----------------------------------------------------"
 
 # Azure login
@@ -49,3 +64,8 @@ az acr build \
     -f "${INPUT_DOCKERFILE}" \
     -t "${INPUT_REPOSITORY}${IMAGE_PART}:${INPUT_TAG}" \
     "https://${GIT_ACCESS_TOKEN_FLAG}github.com/${GITHUB_REPOSITORY}.git#${INPUT_BRANCH}:${INPUT_FOLDER}"
+
+# --- Set Action Outputs ---
+echo "ci_repository_name=${CI_REPOSITORY_NAME}" >> "$GITHUB_OUTPUT"
+echo "ci_action_ref_name=${CI_ACTION_REF_NAME}" >> "$GITHUB_OUTPUT"
+echo "node_version=${NODE_VERSION}" >> "$GITHUB_OUTPUT"
