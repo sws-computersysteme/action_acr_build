@@ -42,6 +42,11 @@ else
     echo ".node-version file not found, skipping NODE_VERSION setting."
 fi
 
+# Build args ergänzen
+if [[ -n "${NODE_VERSION}" ]]; then
+    BUILD_ARGS="--build-arg NODE_VERSION=${NODE_VERSION} ${BUILD_ARGS}"
+fi
+
 echo "-----------------------------------------------------"
 echo "Environment Variables:"
 echo "  CI_REPOSITORY_NAME=${CI_REPOSITORY_NAME}"
