@@ -38,7 +38,14 @@ else
 fi
 
 # Erst INPUT_BUILD_ARGS verarbeiten (falls vorhanden)
-BUILD_ARGS_FROM_INPUT=$(echo -n "${INPUT_BUILD_ARGS:-''}" | jq -j '.[] | keys[] as $k | values[] as $v | "--build-arg \($k)=\"\($v)\" "' || true)
+BUILD_ARGS_FROM_INPUT=""
+if [[ -n "${INPUT_BUILD_ARGS:-}" ]]; then
+  if echo "${INPUT_BUILD_ARGS}" | jq empty >/dev/null 2>&1; then
+    BUILD_ARGS_FROM_INPUT=$(echo -n "${INPUT_BUILD_ARGS}" | jq -j '.[] | keys[] as $k | values[] as $v | "--build-arg \($k)=\"\($v)\" "' || true)
+  else
+    echo "Warning: INPUT_BUILD_ARGS is not valid JSON, skipping build args."
+  fi
+fi
 
 # Jetzt dynamisch NODE_VERSION ergänzen, falls vorhanden
 if [[ -n "${NODE_VERSION}" ]]; then
