@@ -4,7 +4,7 @@ set -euo pipefail
 # Default values
 INPUT_DOCKERFILE="${INPUT_DOCKERFILE:-Dockerfile}"
 INPUT_TAG="${INPUT_TAG:-${GITHUB_SHA::8}}"
-INPUT_BRANCH="${INPUT_BRANCH:-master}"
+INPUT_BRANCH="${INPUT_BRANCH:-${GITHUB_REF_NAME}}"
 
 # Automatisch Repository bestimmen, wenn nicht übergeben
 if [[ -z "${INPUT_REPOSITORY:-}" ]]; then
