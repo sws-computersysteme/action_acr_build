@@ -79,7 +79,7 @@ az acr build \
     -r "${INPUT_REGISTRY}" \
     ${BUILD_ARGS} \
     -f "${INPUT_DOCKERFILE}" \
-    -t "${INPUT_REPOSITORY}${IMAGE_PART}:${INPUT_TAG}" \
+    -t "${INPUT_REPOSITORY,,}${IMAGE_PART}:${INPUT_TAG}" \
     "https://${GIT_ACCESS_TOKEN_FLAG}github.com/${GITHUB_REPOSITORY}.git#${INPUT_BRANCH}:${INPUT_FOLDER}"
 
 # --- Set Action Outputs ---
