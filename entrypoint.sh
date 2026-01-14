@@ -61,11 +61,6 @@ echo "  CI_ACTION_REF_NAME=${CI_ACTION_REF_NAME}"
 echo "  NODE_VERSION=${NODE_VERSION}"
 echo "-----------------------------------------------------"
 
-echo "Git Clone URL used for build:"
-echo "https://${GIT_ACCESS_TOKEN_FLAG}github.com/${GITHUB_REPOSITORY}.git#${INPUT_BRANCH}:${INPUT_FOLDER}"
-echo "Build arguments: ${BUILD_ARGS}"
-echo "-----------------------------------------------------"
-
 # Azure login
 echo "Logging into Azure Container Registry..."
 az login --service-principal \
@@ -73,14 +68,42 @@ az login --service-principal \
     --password "${INPUT_SERVICE_PRINCIPAL_PASSWORD}" \
     --tenant "${INPUT_TENANT}"
 
+# Decide between local context or Git URL
+if [[ -n "${INPUT_GIT_ACCESS_TOKEN:-}" ]]; then
+    # Use Git URL if token is provided
+    BUILD_CONTEXT="https://${GIT_ACCESS_TOKEN_FLAG}github.com/${GITHUB_REPOSITORY}.git#${INPUT_BRANCH}:${INPUT_FOLDER}"
+    echo "Build context: Git URL"
+    echo "  ${BUILD_CONTEXT}"
+else
+    # Use local checkout
+    BUILD_CONTEXT="${GITHUB_WORKSPACE}/${INPUT_FOLDER}"
+    echo "Build context: Local directory"
+    echo "  ${BUILD_CONTEXT}"
+fi
+
+echo "Dockerfile: ${INPUT_DOCKERFILE}"
+echo "Build arguments: ${BUILD_ARGS}"
+echo "-----------------------------------------------------"
+
 # Build and push image
 echo "Starting build job on ACR..."
-az acr build \
-    -r "${INPUT_REGISTRY}" \
-    ${BUILD_ARGS} \
-    -f "${INPUT_DOCKERFILE}" \
-    -t "${INPUT_REPOSITORY,,}${IMAGE_PART}:${INPUT_TAG}" \
-    "https://${GIT_ACCESS_TOKEN_FLAG}github.com/${GITHUB_REPOSITORY}.git#${INPUT_BRANCH}:${INPUT_FOLDER}"
+if [[ -n "${INPUT_GIT_ACCESS_TOKEN:-}" ]]; then
+    # Git URL build
+    az acr build \
+        -r "${INPUT_REGISTRY}" \
+        ${BUILD_ARGS} \
+        -f "${INPUT_DOCKERFILE}" \
+        -t "${INPUT_REPOSITORY,,}${IMAGE_PART}:${INPUT_TAG}" \
+        "${BUILD_CONTEXT}"
+else
+    # Local context build
+    az acr build \
+        -r "${INPUT_REGISTRY}" \
+        ${BUILD_ARGS} \
+        -f "${INPUT_FOLDER}/${INPUT_DOCKERFILE}" \
+        -t "${INPUT_REPOSITORY,,}${IMAGE_PART}:${INPUT_TAG}" \
+        "${BUILD_CONTEXT}"
+fi
 
 # --- Set Action Outputs ---
 echo "ci_repository_name=${CI_REPOSITORY_NAME}" >> "$GITHUB_OUTPUT"

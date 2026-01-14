@@ -20,7 +20,7 @@ Buildet und pusht ein Docker-Image direkt in eine **Azure Container Registry (AC
 | `tenant` | Azure Tenant ID | ✅ | - |
 | `registry` | Name der ACR (ohne `.azurecr.io`) | ✅ | - |
 | `repository` | Name des Repositorys (wird sonst automatisch erkannt) | ❌ | aktuelles Repo |
-| `git_access_token` | GitHub Access Token (z.B. für private Repos) | ✅ | - |
+| `git_access_token` | GitHub Access Token (optional - nutzt lokalen Checkout wenn nicht angegeben) | ❌ | - |
 | `image` | Docker-Image-Name | ❌ | leer |
 | `tag` | Docker-Tag (Standard: Commit SHA) | ❌ | aktueller Git-Ref |
 | `branch` | Branch, aus dem gebaut wird | ❌ | `master` |

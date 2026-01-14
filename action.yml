@@ -21,8 +21,8 @@ inputs:
     description: "Repository to use (defaults to current repo)"
     required: false
   git_access_token:
-    description: "Github access token for private repositories"
-    required: true
+    description: "Github access token for private repositories (optional - if not provided, uses local checkout)"
+    required: false
   image:
     description: "Docker image name"
     required: false
