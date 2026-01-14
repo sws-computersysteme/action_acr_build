@@ -30,11 +30,12 @@ CI_REPOSITORY_NAME="${INPUT_REPOSITORY}"
 CI_ACTION_REF_NAME="${GITHUB_REF_NAME}"
 NODE_VERSION=""
 
-# Read .node-version file if exists
-if [[ -f ".node-version" ]]; then
-    NODE_VERSION=$(cat .node-version | tr -d '[:space:]')
+# Read .node-version file if exists (considering the INPUT_FOLDER)
+NODE_VERSION_FILE="${GITHUB_WORKSPACE}/${INPUT_FOLDER}/.node-version"
+if [[ -f "${NODE_VERSION_FILE}" ]]; then
+    NODE_VERSION=$(cat "${NODE_VERSION_FILE}" | tr -d '[:space:]')
 else
-    echo ".node-version file not found, skipping NODE_VERSION setting."
+    echo ".node-version file not found at ${NODE_VERSION_FILE}, skipping NODE_VERSION setting."
 fi
 
 # Erst INPUT_BUILD_ARGS verarbeiten (falls vorhanden)
